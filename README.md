@@ -9,6 +9,8 @@ notebooks documenting the analytical workflow addressed in that specific use
 case. For each case a reproducible environment is set up using the `renv`
 package.
 
+## List of use cases
+
 ## How to run a use case
 
 To run a use case, you need to have the `renv` package installed. If you don't
@@ -55,8 +57,3 @@ renv::snapshot()
 your fork.
 
 8. Open a Pull Request to the main repository.
-
-## List of use cases
-
-
-
