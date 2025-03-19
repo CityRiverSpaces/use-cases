@@ -35,7 +35,7 @@ use case. You can then run the code in the Quarto notebook(s).
 1. Fork the repository and clone it locally.
 
 2. In the local clone, copy the template use case directory
-[use-case-template/](use-case-template/) and rename it with a short descriptive
+[00-use-case-template/](00-use-case-template/) and rename it with a short descriptive
 name using dashes between words.
 
 3. Create an RStudio project in the new directory and open it. This will set the
@@ -45,7 +45,7 @@ working directory to the new use case directory.
 template `notebook.qmd`. Feel free to split your workflow into multiple
 notebooks and rename them accordingly.
 
-5. Create a snapshot of the pacakges used in the notebooks by running:
+5. Create a snapshot of the packages used in the notebooks by running:
 
 ```r
 renv::snapshot()
