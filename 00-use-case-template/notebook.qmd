@@ -1,0 +1,158 @@
+---
+title: "Delineating corridors, segments and riverspaces along the stream network of Dresden"
+author: Claudiu Forgaci
+---
+
+```{r}
+#| label: setup
+#| include: false
+
+options(
+  message = FALSE,
+  warn = FALSE
+)
+
+library(CRiSp)
+library(sf)
+library(tidyverse)
+```
+
+```{r message=FALSE, warning=FALSE}
+city_name <- "Dresden"
+city_bb <- get_osm_bb(city_name)
+crs <- get_utm_zone(city_bb)
+city_boundary <- get_osm_city_boundary(city_bb, city_name, crs)
+```
+
+```{r river-data, message=FALSE, warning=FALSE}
+river_centerline <- osmdata_as_sf("waterway", "river", city_bb)
+river_centerline <- river_centerline$osm_lines |>
+  st_geometry() |> 
+  st_transform(crs)
+```
+
+```{r stream-data, message=FALSE, warning=FALSE}
+stream_centerline <- osmdata_as_sf("waterway", "stream", city_bb)
+stream_centerline <- stream_centerline$osm_lines |>
+  st_transform(crs)
+```
+
+```{r clean-data}
+# Extract features to be removed for visualisation
+does_not_intersect <- \(x, y) !st_intersects(x, y)
+stream_centerline_nocity <- stream_centerline |>
+  st_filter(city_boundary, .predicate = does_not_intersect)
+
+stream_centerline_city <- stream_centerline |>
+  st_filter(city_boundary, .predicate = st_intersects)
+
+stream_centerline_noname <- stream_centerline_city |>
+  filter(is.na(name))
+
+# Keep only named streams within city boundaries
+stream_centerline_named <- stream_centerline_city |>
+  filter(!is.na(name))
+```
+
+```{r message=FALSE, warning=FALSE}
+plot(city_boundary, col = "grey90", border = NA)
+plot(river_centerline, col = "white", lwd = 2, add = TRUE)
+plot(stream_centerline_named, col = "blue", lwd = 1.5, add = TRUE)
+plot(stream_centerline_nocity, col = "pink", add = TRUE)
+plot(stream_centerline_noname, col = "red", add = TRUE)
+```
+
+```{r}
+# Group streams by name
+stream_centerline_grouped <- stream_centerline_named |> 
+  group_by(name) |>
+  summarise(geometry = st_union(geometry)) |>
+  ungroup() |> 
+  mutate(length = st_length(geometry)) |> 
+  arrange(desc(length))
+
+stream_centerline_geberbach <- stream_centerline_grouped |> 
+  filter(name == "Geberbach")
+```
+
+```{r}
+plot(stream_centerline_grouped)
+plot(city_boundary, col = "grey90", border = NA)
+plot(stream_centerline_grouped, col = "blue", lwd = 1, add = TRUE)
+plot(stream_centerline_geberbach, col = "orange", lwd = 2, add = TRUE)
+```
+```{r}
+stream <- list(centerline = stream_centerline_grouped$geometry, surface = NULL)
+
+network_buffer <- 2500
+aoi_network <- get_river_aoi(stream, city_bb, network_buffer)
+aoi <- reproject(aoi_network, crs)
+
+highway_values <- c("motorway", "secondary", "primary", "tertiary",
+                      "residential")
+streets <- get_osm_streets(aoi_network, highway_values = highway_values,
+                           crs = crs)
+railways <- get_osm_railways(aoi_network, crs = crs)
+
+delineate_stream <- function(stream, city_bb, streets, railways,
+                             network_buffer = 2500, dem_buffer = 1000,
+                             buildings_buffer = 100) {
+  stream <- list(centerline = stream$geometry, surface = NULL)
+
+  aoi_network <- get_river_aoi(stream, city_bb, network_buffer)
+  aoi <- reproject(aoi_network, crs)
+  
+  highway_values <- c("motorway", "secondary", "primary", "tertiary",
+                      "residential")
+  streets <- get_osm_streets(aoi_network, highway_values = highway_values,
+                             crs = crs)
+  railways <- get_osm_railways(aoi_network, crs = crs)
+  network_edges <- dplyr::bind_rows(streets, railways)
+  network <- as_network(network_edges)
+  
+  aoi_dem <- CRiSp:::buffer(aoi_network, dem_buffer)
+  dem <- get_dem(aoi_dem, crs = crs)
+  
+  corridor <- delineate_corridor(network, stream_centerline_geberbach, NULL, aoi,
+                                 max_width = network_buffer, dem = dem,
+                                 capping_method = "shortest-path")
+  
+  buffer_corridor <- 100
+  corridor_buffer <- sf::st_buffer(corridor, buffer_corridor)
+  network_filtered <- CRiSp:::filter_network(network, corridor_buffer)
+  segments <- delineate_segments(corridor, network_filtered, stream$centerline)
+  
+  aoi_buildings <- get_river_aoi(stream, city_bb, buildings_buffer)
+  buildings <- get_osm_buildings(aoi_buildings, crs = crs)
+  riverspace <- delineate_riverspace(buildings, stream$centerline)
+  
+  list(
+    corridor = corridor,
+    segments = segments,
+    riverspace = riverspace
+  )
+}
+
+delineation_geberbach <- delineate_stream(stream_centerline_geberbach, city_bb)
+```
+
+```{r}
+plot(stream_centerline_geberbach$geometry, lwd = 3, col = "cyan")
+plot(delineation_geberbach$riverspace, border = NA, col = "green", lwd = 5, add = TRUE)
+plot(delineation_geberbach$segments, border = "orange", lwd = 3, add = TRUE)
+plot(delineation_geberbach$corridor, border = "orange", lwd = 5, add = TRUE)
+plot(railways$geometry, col = "grey60", add = TRUE)
+plot(streets$geometry, add = TRUE)
+```
+
+```{r}
+delineations <- vector("list", length = nrow(stream_centerline_grouped))
+for (i in 1:length(delineations)) {
+  delineations[[i]] <- tryCatch(delineate_stream(stream_centerline_grouped[i, ],
+                                                 city_bb),
+                                error = function(e) NULL)
+}
+n_delineated <- lapply(delineations, \(x) !is.null(x)) |> unlist() |> sum()
+n_total <- length(delineations)
+sprintf("%i out of %i delineations successful", n_delineated, n_total)
+```
