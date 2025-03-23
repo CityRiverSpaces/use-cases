@@ -151,11 +151,12 @@ delineate_stream <- function(stream, city_bb, streets, railways,
   )
 }
 
-delineation_geberbach <- delineate_stream(stream_centerline_geberbach, city_bb)
+# delineation_geberbach <- delineate_stream(stream_centerline_grouped[7, ], city_bb)
 ```
 
 ```{r}
 #| echo: false
+#| eval: false
 
 plot(delineation_geberbach$corridor, border = "orange", lwd = 5)
 plot(stream_centerline_geberbach$geometry, lwd = 3, col = "cyan", add = TRUE)
