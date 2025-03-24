@@ -140,14 +140,15 @@ delineate_stream <- function(stream, city_bb, streets, railways,
   network_filtered <- CRiSp:::filter_network(network, corridor_buffer)
   segments <- delineate_segments(corridor, network_filtered, stream$centerline)
   
-  # aoi_buildings <- get_river_aoi(stream, city_bb, buildings_buffer)
-  # buildings <- get_osm_buildings(aoi_buildings, crs = crs)
-  # riverspace <- delineate_riverspace(buildings, stream$centerline)
+  aoi_buildings <- get_river_aoi(stream, city_bb, buildings_buffer)
+  buildings <- get_osm_buildings(aoi_buildings, crs = crs)
+  riverspace <- delineate_riverspace(buildings, stream$centerline)
   
   list(
     initial_corridor = initial_corridor,
     corridor = corridor,
-    segments = segments
+    segments = segments,
+    riverspace = riverspace
   )
 }
 
