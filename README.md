@@ -14,7 +14,7 @@ up for each use case with the `renv` package.
 
 | Use case | Description |
 |--------------------------|----------------------------------------------|
-| [01-Dresden-streams](https://CityRiverSpaces.github.io/01-Dresden-streams/notebook.html) | Corridor and segment delineation along the stream network of Dresden |
+| [01-Dresden-streams](https://CityRiverSpaces.github.io/CRiSp-use-cases/01-Dresden-streams/notebook.html) | Corridor and segment delineation along the stream network of Dresden |
 
 ## How to run a use case
 
