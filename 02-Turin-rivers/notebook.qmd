@@ -1,0 +1,80 @@
+---
+title: "Delineating corridors and segments of Turin's Po, Dora and Stura di Lanzo rivers"
+author: Claudiu Forgaci
+---
+
+```{r}
+#| label: setup
+#| include: false
+
+knitr::opts_chunk$set(message = FALSE, warning = FALSE)
+
+library(rcrisp)
+library(sfnetworks)
+library(reticulate)
+```
+
+```{r}
+bb <- get_osm_bb("Turin")
+crs <- get_utm_zone(bb)
+city_boundary <- get_osm_city_boundary(bb, "Torino", crs)
+
+# Delineate the segments for the Po, Dora Riparia and Stura di Lanzo rivers
+tp <- delineate("Turin", "Fiume Po", segments = TRUE)
+po <- get_osm_river(bb, "Fiume Po", crs)
+po$centerline <- po$centerline |> st_intersection(city_boundary)
+po$surface <- po$surface |> st_intersection(city_boundary)
+tp <- c(tp, po)
+
+td <- delineate("Turin", "Dora Riparia", segments = TRUE)
+dora <- get_osm_river(bb, "Dora Riparia", crs)
+dora$centerline <- dora$centerline |> st_intersection(city_boundary)
+dora$surface <- dora$surface |> st_intersection(city_boundary)
+td <- c(td, dora)
+
+ts <- delineate("Turin", "Stura di Lanzo", segments = TRUE)
+stura_di_lanzo <- get_osm_river(bb, "Stura di Lanzo", crs)
+stura_di_lanzo$centerline <- stura_di_lanzo$centerline |> 
+  st_intersection(city_boundary)
+stura_di_lanzo$surface <- stura_di_lanzo$surface |>
+  st_intersection(city_boundary)
+ts <- c(ts, stura_di_lanzo)
+
+# # Delineate Dora river with full network of streets and railways
+# highway_values <- c("motorway", "trunk", "primary", "secondary", "tertiary")
+# link_values <- vapply(X = highway_values,
+#                       FUN = \(x) sprintf("%s_link", x),
+#                       FUN.VALUE = character(1),
+#                       USE.NAMES = FALSE)
+# highway_values <- c(highway_values, link_values, "residential")
+# 
+# streets <- get_osm_streets(bb, crs, highway_values = highway_values)
+# railways <- get_osm_railways(bb, crs)
+# network <- dplyr::bind_rows(streets, railways) |> as_network()
+# 
+# aoi_netwok_td <- get_river_aoi(list(centerline = td$centerline,
+#                                     surface = td$surface),
+#                                bb, buffer_distance = 3000)
+# aoi_dem <- rcrisp:::buffer(aoi_netwok_td, 2500)
+# dem <- get_dem(aoi_dem, crs = crs)
+# 
+# td$corridor <- delineate_corridor(network, td$centerline, dem = dem)
+# td$segments <- delineate_segments(td$corridor, network, td$centerline)
+
+# Combine all segments into a single object for plotting
+all_segments <- tp$segments |>
+  st_union(td$segments) |>
+  st_union(ts$segments)
+```
+
+```{r}
+# Plot the segments
+all_segments |> plot(lwd = 0.1, col = "grey95", border = NA)
+tp$centerline |> plot(col = "blue", add = TRUE)
+tp$segments |> plot(border = "lightblue", lwd = 1.5, add = TRUE)
+ts$centerline |> plot(col = "red", add = TRUE)
+ts$segments |> plot(border = "magenta", lwd = 1.5, add = TRUE)
+td$centerline |> plot(col = "darkgreen", add = TRUE)
+td$segments |> plot(border = "green", lwd = 1.5, add = TRUE)
+city_boundary |> plot(border = "gold", add= TRUE)
+```
